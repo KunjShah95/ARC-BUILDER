@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, memo } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
 import {
   ArrowRight,
@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ParticleSystem } from "@/components/particle-system"
+import { ThemeToggle } from "@/components/theme-toggle"
 import Link from "next/link"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
@@ -51,7 +52,72 @@ const glowEffect = {
   },
 }
 
-export default function ArcBuilderLanding() {
+// Memoized components for better performance
+const FeatureCard = memo(({ feature, index }: { feature: any; index: number }) => (
+  <motion.div variants={fadeInUp}>
+    <motion.div
+      whileHover={{ y: -10, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+    >
+      <Card className="h-full hover:shadow-2xl transition-all duration-500 bg-card/50 backdrop-blur-sm border-2 hover:border-primary/30 group">
+        <CardHeader className="pb-4">
+          <motion.div
+            className={`w-16 h-16 bg-gradient-to-br ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
+            whileHover={{ rotate: 5 }}
+          >
+            <feature.icon className="w-8 h-8 text-white" />
+          </motion.div>
+          <CardTitle className="text-2xl mb-3 group-hover:text-primary transition-colors">
+            {feature.title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <CardDescription className="text-base leading-relaxed">{feature.description}</CardDescription>
+          <div className="flex flex-wrap gap-2">
+            {feature.features.map((feat: string, i: number) => (
+              <Badge key={i} variant="secondary" className="text-xs">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                {feat}
+              </Badge>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  </motion.div>
+))
+
+FeatureCard.displayName = "FeatureCard"
+
+const TestimonialCard = memo(({ testimonial, index }: { testimonial: any; index: number }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 30 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    transition={{ duration: 0.6, delay: index * 0.1 }}
+  >
+    <Card className="h-full">
+      <CardContent className="pt-6">
+        <p className="text-muted-foreground mb-6 italic">"{testimonial.quote}"</p>
+        <div className="flex items-center">
+          <Avatar className="w-10 h-10 mr-3">
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              {testimonial.avatar}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-semibold text-foreground">{testimonial.author}</p>
+            <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  </motion.div>
+))
+
+TestimonialCard.displayName = "TestimonialCard"
+
+function ArcBuilderLanding() {
   const [activeDemo, setActiveDemo] = useState(0)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0)
@@ -157,6 +223,7 @@ export default function ArcBuilderLanding() {
               <Github className="w-4 h-4 mr-2" />
               Star on GitHub
             </Button>
+            <ThemeToggle />
             <Link href="/generator">
               <Button size="sm" className="bg-gradient-to-r from-primary to-accent hover:shadow-lg">
                 Get Started
@@ -422,37 +489,7 @@ export default function ArcBuilderLanding() {
                 features: ["One-Click Deploy", "CI/CD Ready", "Environment Config"],
               },
             ].map((feature, index) => (
-              <motion.div key={index} variants={fadeInUp}>
-                <motion.div
-                  whileHover={{ y: -10, scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                >
-                  <Card className="h-full hover:shadow-2xl transition-all duration-500 bg-card/50 backdrop-blur-sm border-2 hover:border-primary/30 group">
-                    <CardHeader className="pb-4">
-                      <motion.div
-                        className={`w-16 h-16 bg-gradient-to-br ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
-                        whileHover={{ rotate: 5 }}
-                      >
-                        <feature.icon className="w-8 h-8 text-white" />
-                      </motion.div>
-                      <CardTitle className="text-2xl mb-3 group-hover:text-primary transition-colors">
-                        {feature.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <CardDescription className="text-base leading-relaxed">{feature.description}</CardDescription>
-                      <div className="flex flex-wrap gap-2">
-                        {feature.features.map((feat, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            {feat}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </motion.div>
+              <FeatureCard key={index} feature={feature} index={index} />
             ))}
           </motion.div>
         </div>
@@ -541,32 +578,196 @@ export default function ArcBuilderLanding() {
                 avatar: "EW",
               },
             ].map((testimonial, index) => (
+              <TestimonialCard key={index} testimonial={testimonial} index={index} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-32 px-4 bg-gradient-to-b from-background to-muted/20">
+        <div className="container mx-auto">
               <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-              >
-                <Card className="h-full">
-                  <CardContent className="pt-6">
-                    <p className="text-muted-foreground mb-6 italic">"{testimonial.quote}"</p>
-                    <div className="flex items-center">
-                      <Avatar className="w-10 h-10 mr-3">
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          {testimonial.avatar}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-semibold text-foreground">{testimonial.author}</p>
-                        <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+            transition={{ duration: 0.8 }}
+            className="text-center mb-20"
+          >
+            <Badge variant="secondary" className="mb-4 text-sm px-4 py-2">
+              <Target className="w-4 h-4 mr-2" />
+              Pricing
+            </Badge>
+            <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6 text-balance">
+              Choose Your{" "}
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Plan</span>
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto text-pretty">
+              Start free and scale as you grow. No hidden fees, no surprises. Cancel anytime.
+            </p>
+          </motion.div>
+
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true }}
+            className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto"
+          >
+            {[
+              {
+                name: "Starter",
+                price: "Free",
+                period: "forever",
+                description: "Perfect for trying out ArcBuilder",
+                features: [
+                  "5 website generations per month",
+                  "Basic templates",
+                  "Community support",
+                  "Standard integrations",
+                  "Basic analytics",
+                ],
+                cta: "Get Started Free",
+                popular: false,
+                color: "from-gray-500 to-gray-600",
+              },
+              {
+                name: "Pro",
+                price: "$29",
+                period: "per month",
+                description: "For developers and small teams",
+                features: [
+                  "Unlimited website generations",
+                  "Premium templates & components",
+                  "Priority support",
+                  "Advanced integrations",
+                  "Custom domains",
+                  "Team collaboration",
+                  "Advanced analytics",
+                  "API access",
+                ],
+                cta: "Start Pro Trial",
+                popular: true,
+                color: "from-primary to-accent",
+              },
+              {
+                name: "Enterprise",
+                price: "Custom",
+                period: "contact us",
+                description: "For large teams and organizations",
+                features: [
+                  "Everything in Pro",
+                  "White-label solution",
+                  "Dedicated support",
+                  "Custom integrations",
+                  "SSO & advanced security",
+                  "On-premise deployment",
+                  "Custom SLA",
+                  "Training & onboarding",
+                ],
+                cta: "Contact Sales",
+                popular: false,
+                color: "from-purple-500 to-pink-500",
+              },
+            ].map((plan, index) => (
+              <motion.div key={index} variants={fadeInUp}>
+                <motion.div
+                  whileHover={{ y: -10, scale: 1.02 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                >
+                  <Card
+                    className={`h-full relative overflow-hidden transition-all duration-500 ${
+                      plan.popular
+                        ? "border-2 border-primary/50 shadow-2xl shadow-primary/10 scale-105"
+                        : "hover:shadow-xl"
+                    }`}
+                  >
+                    {plan.popular && (
+                      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-primary to-accent text-white text-center py-2 text-sm font-medium">
+                        Most Popular
                       </div>
+                    )}
+                    
+                    <CardHeader className={`pt-8 ${plan.popular ? "pt-12" : ""}`}>
+                      <div className="text-center">
+                        <h3 className="text-2xl font-bold text-foreground mb-2">{plan.name}</h3>
+                        <p className="text-muted-foreground mb-6">{plan.description}</p>
+                        <div className="mb-6">
+                          <span className="text-4xl font-bold text-foreground">{plan.price}</span>
+                          <span className="text-muted-foreground ml-2">/{plan.period}</span>
                     </div>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="space-y-6">
+                      <ul className="space-y-4">
+                        {plan.features.map((feature, i) => (
+                          <li key={i} className="flex items-center gap-3">
+                            <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                            <span className="text-sm">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      <Button
+                        className={`w-full ${
+                          plan.popular
+                            ? "bg-gradient-to-r from-primary to-accent hover:shadow-lg"
+                            : "bg-muted hover:bg-muted/80"
+                        }`}
+                        variant={plan.popular ? "default" : "outline"}
+                      >
+                        {plan.cta}
+                      </Button>
                   </CardContent>
                 </Card>
               </motion.div>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* FAQ Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mt-20 text-center"
+          >
+            <h3 className="text-2xl font-bold text-foreground mb-8">Frequently Asked Questions</h3>
+            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              {[
+                {
+                  question: "Can I change plans anytime?",
+                  answer: "Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.",
+                },
+                {
+                  question: "What happens to my generated websites?",
+                  answer: "Your websites remain yours forever. You can download, modify, and deploy them anywhere.",
+                },
+                {
+                  question: "Do you offer refunds?",
+                  answer: "We offer a 30-day money-back guarantee for all paid plans. No questions asked.",
+                },
+                {
+                  question: "Is there a free trial?",
+                  answer: "Yes! Start with our free plan and upgrade when you're ready. No credit card required.",
+                },
+              ].map((faq, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="text-left"
+                >
+                  <h4 className="font-semibold text-foreground mb-2">{faq.question}</h4>
+                  <p className="text-sm text-muted-foreground">{faq.answer}</p>
+              </motion.div>
             ))}
           </div>
+          </motion.div>
         </div>
       </section>
 
@@ -809,3 +1010,5 @@ export default function ArcBuilderLanding() {
     </div>
   )
 }
+
+export default memo(ArcBuilderLanding)

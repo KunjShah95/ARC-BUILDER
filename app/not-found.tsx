@@ -4,9 +4,9 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
-import { CheckCircle, Mail, ArrowRight } from "lucide-react"
+import { Home, Search, ArrowLeft } from "lucide-react"
 
-export default function Page() {
+export default function NotFound() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-6">
       <motion.div
@@ -21,15 +21,15 @@ export default function Page() {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6"
+              className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6"
             >
-              <CheckCircle className="w-10 h-10 text-white" />
+              <Search className="w-10 h-10 text-white" />
             </motion.div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Check Your Email
+              404 - Page Not Found
             </CardTitle>
             <CardDescription className="text-lg">
-              We've sent you a confirmation link
+              The page you're looking for doesn't exist
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 text-center">
@@ -39,19 +39,14 @@ export default function Page() {
               transition={{ delay: 0.3 }}
               className="space-y-4"
             >
-              <div className="flex items-center justify-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <Mail className="w-6 h-6 text-blue-600" />
-                <div className="text-left">
-                  <p className="font-medium text-blue-900 dark:text-blue-100">Email Verification</p>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Click the link in your email to verify your account
-                  </p>
-                </div>
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-blue-800 dark:text-blue-200">
+                  The page you're looking for might have been moved, deleted, or doesn't exist.
+                </p>
               </div>
               
-              <div className="text-sm text-muted-foreground space-y-2">
-                <p>We've sent a confirmation email to your inbox.</p>
-                <p>Please check your spam folder if you don't see it.</p>
+              <div className="text-sm text-muted-foreground">
+                <p>Here are some helpful links to get you back on track:</p>
               </div>
             </motion.div>
 
@@ -62,16 +57,26 @@ export default function Page() {
               className="space-y-3"
             >
               <Button asChild className="w-full h-12 text-base bg-gradient-to-r from-primary to-accent hover:shadow-lg">
-                <Link href="/auth/login">
-                  Back to Sign In
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                <Link href="/">
+                  <Home className="w-4 h-4 mr-2" />
+                  Go Home
                 </Link>
               </Button>
               
               <Button asChild variant="outline" className="w-full h-12 text-base">
-                <Link href="/">
-                  Return to Home
+                <Link href="/generator">
+                  <Search className="w-4 h-4 mr-2" />
+                  Try Generator
                 </Link>
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                className="w-full h-12 text-base"
+                onClick={() => window.history.back()}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Go Back
               </Button>
             </motion.div>
           </CardContent>
