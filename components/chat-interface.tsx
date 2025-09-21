@@ -18,8 +18,11 @@ import {
   Loader2,
   MessageSquare,
   Wand2,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
+import { apiService, type WebsiteStatus, ApiError } from "@/lib/api-service"
 
 interface Message {
   id: string
@@ -27,8 +30,9 @@ interface Message {
   content: string
   timestamp: Date
   isLoading?: boolean
-  codePreview?: string
-  websiteUrl?: string
+  taskId?: string
+  status?: WebsiteStatus
+  error?: string
 }
 
 export default function ChatInterface() {
@@ -63,42 +67,124 @@ export default function ChatInterface() {
     }
 
     setMessages((prev) => [...prev, userMessage])
+    const originalInput = inputValue
     setInputValue("")
     setIsGenerating(true)
 
     // Add loading message
+    const loadingMessageId = (Date.now() + 1).toString()
     const loadingMessage: Message = {
-      id: (Date.now() + 1).toString(),
+      id: loadingMessageId,
       type: "assistant",
-      content: "Generating your website...",
+      content: "Starting website generation...",
       timestamp: new Date(),
       isLoading: true,
     }
 
     setMessages((prev) => [...prev, loadingMessage])
 
-    // Simulate AI response (replace with actual API call)
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 2).toString(),
-        type: "assistant",
-        content: `I've created a beautiful ${userMessage.content.toLowerCase()}! Your website includes:
+    try {
+      // Check if backend is running
+      await apiService.healthCheck()
+      
+      // Start website generation
+      const response = await apiService.generateWebsite({
+        user_prompt: originalInput,
+        recursion_limit: 100
+      })
 
-✨ **Modern Design**: Clean, responsive layout with smooth animations
-🎨 **Custom Styling**: Tailwind CSS with shadcn/ui components
-⚡ **Performance Optimized**: Next.js 14 with App Router
-🔒 **SEO Ready**: Meta tags, structured data, and accessibility features
-📱 **Mobile First**: Responsive design that works on all devices
+      // Update loading message with task ID
+      setMessages((prev) => prev.map(msg => 
+        msg.id === loadingMessageId 
+          ? { ...msg, content: "Website generation started. Please wait...", taskId: response.task_id }
+          : msg
+      ))
 
-The website is now ready for deployment. You can preview it, download the code, or deploy it directly to Vercel!`,
-        timestamp: new Date(),
-        codePreview: "https://github.com/example/generated-website",
-        websiteUrl: "https://your-website-preview.vercel.app",
+      // Poll for status updates
+      await apiService.pollTaskStatus(
+        response.task_id,
+        (status) => {
+          // Update the loading message with progress
+          setMessages((prev) => prev.map(msg => 
+            msg.id === loadingMessageId 
+              ? { 
+                  ...msg, 
+                  content: `${status.progress.message}\n\nStep: ${status.progress.step}`,
+                  status: status
+                }
+              : msg
+          ))
+        }
+      )
+
+      // Get final status
+      const finalStatus = await apiService.getTaskStatus(response.task_id)
+      
+      if (finalStatus.status === 'completed' && finalStatus.result) {
+        const successMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          type: "assistant",
+          content: `🎉 **Website Generated Successfully!**
+
+I've created your website based on: "${originalInput}"
+
+**Generated Files:** ${finalStatus.result.file_count} files
+**Features Include:**
+✨ Modern, responsive design
+🎨 Clean, semantic HTML/CSS/JS
+⚡ Optimized performance
+📱 Mobile-first approach
+🔒 Best practices implemented
+
+Your website is ready! You can download the complete source code or preview individual files.`,
+          timestamp: new Date(),
+          taskId: response.task_id,
+          status: finalStatus,
+        }
+
+        setMessages((prev) => prev.filter((msg) => !msg.isLoading).concat(successMessage))
+      } else {
+        const errorMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          type: "assistant",
+          content: `❌ **Generation Failed**
+
+Sorry, there was an issue generating your website: ${finalStatus.error_message || 'Unknown error'}
+
+Please try again with a different prompt or check if the backend server is running properly.`,
+          timestamp: new Date(),
+          error: finalStatus.error_message,
+        }
+
+        setMessages((prev) => prev.filter((msg) => !msg.isLoading).concat(errorMessage))
+      }
+    } catch (error) {
+      console.error('Error generating website:', error)
+      
+      let errorContent = "❌ **Connection Error**\n\n"
+      
+      if (error instanceof ApiError) {
+        if (error.status === 0) {
+          errorContent += "Cannot connect to the backend server. Please make sure the Python backend is running on port 8000.\n\nTo start the backend:\n1. Navigate to `backend/app builder/`\n2. Run `python start_server.py`"
+        } else {
+          errorContent += `Server error (${error.status}): ${error.message}`
+        }
+      } else {
+        errorContent += "An unexpected error occurred. Please try again."
       }
 
-      setMessages((prev) => prev.filter((msg) => !msg.isLoading).concat(aiResponse))
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        type: "assistant",
+        content: errorContent,
+        timestamp: new Date(),
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+
+      setMessages((prev) => prev.filter((msg) => !msg.isLoading).concat(errorMessage))
+    } finally {
       setIsGenerating(false)
-    }, 3000)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -178,50 +264,85 @@ The website is now ready for deployment. You can preview it, download the code, 
                           {message.content}
                         </div>
 
-                        {/* Action buttons for AI responses with code/website */}
-                        {message.type === "assistant" && (message.codePreview || message.websiteUrl) && (
+                        {/* Action buttons for completed AI responses */}
+                        {message.type === "assistant" && message.status?.status === 'completed' && message.taskId && (
                           <div className="mt-4 flex flex-wrap gap-2">
-                            {message.websiteUrl && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs"
+                              onClick={async () => {
+                                try {
+                                  const blob = await apiService.downloadWebsite(message.taskId!)
+                                  const url = window.URL.createObjectURL(blob)
+                                  const a = document.createElement('a')
+                                  a.href = url
+                                  a.download = `website_${message.taskId}.zip`
+                                  document.body.appendChild(a)
+                                  a.click()
+                                  document.body.removeChild(a)
+                                  window.URL.revokeObjectURL(url)
+                                } catch (error) {
+                                  console.error('Download failed:', error)
+                                }
+                              }}
+                            >
+                              <Download className="w-3 h-3 mr-1" />
+                              Download ZIP
+                            </Button>
+                            
+                            {message.status.result?.files && message.status.result.files.length > 0 && (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="h-8 text-xs"
-                                onClick={() => window.open(message.websiteUrl, "_blank")}
+                                onClick={() => {
+                                  // Show files in a modal or expand inline
+                                  const mainFile = message.status?.result?.files.find(f => 
+                                    f.path.includes('index.html') || f.path.includes('main.html')
+                                  ) || message.status?.result?.files[0]
+                                  
+                                  if (mainFile) {
+                                    copyToClipboard(mainFile.content)
+                                  }
+                                }}
                               >
-                                <ExternalLink className="w-3 h-3 mr-1" />
-                                Preview Website
+                                <Code2 className="w-3 h-3 mr-1" />
+                                View Files ({message.status.result.file_count})
                               </Button>
                             )}
-                            {message.codePreview && (
+                          </div>
+                        )}
+
+                        {/* Status indicator for processing messages */}
+                        {message.type === "assistant" && message.status && message.status.status !== 'completed' && (
+                          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                            {message.status.status === 'processing' && (
                               <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 text-xs"
-                                  onClick={() => window.open(message.codePreview, "_blank")}
-                                >
-                                  <Code2 className="w-3 h-3 mr-1" />
-                                  View Code
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 text-xs"
-                                  onClick={() => copyToClipboard(message.codePreview!)}
-                                >
-                                  <Copy className="w-3 h-3 mr-1" />
-                                  Copy Link
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 text-xs"
-                                >
-                                  <Download className="w-3 h-3 mr-1" />
-                                  Download
-                                </Button>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Processing...</span>
                               </>
                             )}
+                            {message.status.status === 'failed' && (
+                              <>
+                                <AlertCircle className="w-3 h-3 text-destructive" />
+                                <span className="text-destructive">Failed</span>
+                              </>
+                            )}
+                            {message.status.status === 'pending' && (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Queued...</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Error indicator */}
+                        {message.error && (
+                          <div className="mt-3 flex items-center gap-2 text-xs text-destructive">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>Error occurred</span>
                           </div>
                         )}
                       </>

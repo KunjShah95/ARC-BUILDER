@@ -1,0 +1,98 @@
+// Prisma schema for the application
+// This schema defines the data model used by the Prisma client throughout the app.
+// It includes models for User, Post, Comment, Tag, and Category, as well as the Role enum.
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["orderByRelation" ]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  name          String?
+  email         String    @unique
+  passwordHash  String
+  image         String?
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  posts         Post[]
+  comments      Comment[]
+
+  @@map("users")
+}
+
+model Post {
+  id           Int        @id @default(autoincrement())
+  title        String
+  slug         String     @unique
+  content      String?
+  markdown     String?
+  published    Boolean    @default(false)
+  authorId     Int
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  author       User       @relation(fields: [authorId], references: [id])
+  tags         Tag[]      @relation("PostTags")
+  categories   Category[] @relation("PostCategories")
+  comments     Comment[]
+
+  // Indexes
+  @@index([authorId])
+  @@index([published])
+  @@map("posts")
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  content    String
+  authorId   Int
+  postId     Int
+  approved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  author     User     @relation(fields: [authorId], references: [id])
+  post       Post     @relation(fields: [postId], references: [id])
+
+  @@index([authorId])
+  @@index([postId])
+  @@map("comments")
+}
+
+model Tag {
+  id      Int    @id @default(autoincrement())
+  name    String @unique
+  slug    String @unique
+
+  // Relations
+  posts   Post[] @relation("PostTags")
+
+  @@map("tags")
+}
+
+model Category {
+  id      Int    @id @default(autoincrement())
+  name    String @unique
+  slug    String @unique
+
+  // Relations
+  posts   Post[] @relation("PostCategories")
+
+  @@map("categories")
+}
