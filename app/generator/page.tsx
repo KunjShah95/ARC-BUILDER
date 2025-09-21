@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
 import {
   Wand2,
   Code2,
@@ -24,6 +26,7 @@ import {
   Monitor,
   Smartphone,
   Tablet,
+  Bot,
 } from "lucide-react"
 
 const templates = [
@@ -37,11 +40,18 @@ const templates = [
 
 const integrations = [
   { id: "github", name: "GitHub", icon: Github, status: "connected" },
-  { id: "supabase", name: "Supabase", icon: Database, status: "disconnected" },
+  { id: "supabase", name: "Supabase", icon: Database, status: "connected" },
   { id: "vercel", name: "Vercel", icon: Zap, status: "connected" },
 ]
 
-export default function GeneratorPage() {
+export default async function GeneratorPage() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data?.user) {
+    redirect("/auth/login")
+  }
+
   const [prompt, setPrompt] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -50,7 +60,60 @@ export default function GeneratorPage() {
   const [selectedTemplate, setSelectedTemplate] = useState("")
   const [previewMode, setPreviewMode] = useState("desktop")
   const [copied, setCopied] = useState(false)
+  const [framework, setFramework] = useState("Next.js 14")
+  const [styling, setStyling] = useState("Tailwind CSS")
+  const [components, setComponents] = useState("shadcn/ui")
+  const [generationError, setGenerationError] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleGenerateWithAI = async () => {
+    if (!prompt.trim()) return
+
+    setIsGenerating(true)
+    setProgress(0)
+    setActiveTab("preview")
+    setGenerationError("")
+
+    try {
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return prev
+          }
+          return prev + 10
+        })
+      }, 500)
+
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          framework,
+          styling,
+          components,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate code")
+      }
+
+      clearInterval(progressInterval)
+      setProgress(100)
+      setGeneratedCode(data.code)
+    } catch (error) {
+      console.error("Generation failed:", error)
+      setGenerationError(error instanceof Error ? error.message : "Failed to generate code")
+    } finally {
+      setIsGenerating(false)
+    }
+  }
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return
@@ -59,14 +122,12 @@ export default function GeneratorPage() {
     setProgress(0)
     setActiveTab("preview")
 
-    // Simulate generation progress
     const intervals = [10, 25, 45, 70, 85, 100]
     for (let i = 0; i < intervals.length; i++) {
       await new Promise((resolve) => setTimeout(resolve, 800))
       setProgress(intervals[i])
     }
 
-    // Mock generated code
     setGeneratedCode(`import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -202,28 +263,43 @@ export default function GeneratedPage() {
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-500">{prompt.length}/2000 characters</div>
 
-                      <Button
-                        onClick={handleGenerate}
-                        disabled={!prompt.trim() || isGenerating}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                            Generating...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-4 h-4 mr-2" />
-                            Generate Website
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button onClick={handleGenerate} disabled={!prompt.trim() || isGenerating} variant="outline">
+                          {isGenerating ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mr-2" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              Mock Generate
+                            </>
+                          )}
+                        </Button>
+
+                        <Button
+                          onClick={handleGenerateWithAI}
+                          disabled={!prompt.trim() || isGenerating}
+                          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                        >
+                          {isGenerating ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                              Generating with AI...
+                            </>
+                          ) : (
+                            <>
+                              <Bot className="w-4 h-4 mr-2" />
+                              Generate with AI
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Generation Progress */}
                 <AnimatePresence>
                   {isGenerating && (
                     <motion.div
@@ -235,18 +311,40 @@ export default function GeneratedPage() {
                         <CardContent className="pt-6">
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">Generating your website...</span>
+                              <span className="text-sm font-medium">Generating your website with AI...</span>
                               <span className="text-sm text-gray-500">{progress}%</span>
                             </div>
                             <Progress value={progress} className="w-full" />
                             <div className="text-xs text-gray-500">
                               {progress < 25 && "Analyzing your requirements..."}
-                              {progress >= 25 && progress < 50 && "Selecting optimal components..."}
-                              {progress >= 50 && progress < 75 && "Generating React code..."}
-                              {progress >= 75 && progress < 100 && "Applying styling and animations..."}
-                              {progress === 100 && "Complete! Your website is ready."}
+                              {progress >= 25 && progress < 50 && "Planning component structure..."}
+                              {progress >= 50 && progress < 75 && "Generating React code with AI..."}
+                              {progress >= 75 && progress < 100 && "Applying styling and optimizations..."}
+                              {progress === 100 && "Complete! Your AI-generated website is ready."}
                             </div>
                           </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                  {generationError && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                            <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                              <span className="text-white text-xs">!</span>
+                            </div>
+                            <span className="text-sm font-medium">Generation Failed</span>
+                          </div>
+                          <p className="text-sm text-red-600 dark:text-red-400 mt-2">{generationError}</p>
                         </CardContent>
                       </Card>
                     </motion.div>
@@ -301,7 +399,11 @@ export default function GeneratedPage() {
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Framework</label>
-                      <select className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700">
+                      <select
+                        className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700"
+                        value={framework}
+                        onChange={(e) => setFramework(e.target.value)}
+                      >
                         <option>Next.js 14</option>
                         <option>React + Vite</option>
                         <option>Remix</option>
@@ -310,7 +412,11 @@ export default function GeneratedPage() {
 
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Styling</label>
-                      <select className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700">
+                      <select
+                        className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700"
+                        value={styling}
+                        onChange={(e) => setStyling(e.target.value)}
+                      >
                         <option>Tailwind CSS</option>
                         <option>CSS Modules</option>
                         <option>Styled Components</option>
@@ -319,7 +425,11 @@ export default function GeneratedPage() {
 
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Components</label>
-                      <select className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700">
+                      <select
+                        className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700"
+                        value={components}
+                        onChange={(e) => setComponents(e.target.value)}
+                      >
                         <option>shadcn/ui</option>
                         <option>Headless UI</option>
                         <option>Chakra UI</option>

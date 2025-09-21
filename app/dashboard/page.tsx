@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
 import {
   FolderOpen,
   Plus,
@@ -138,7 +140,14 @@ const stats = {
   starredProjects: mockProjects.filter((p) => p.starred).length,
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data?.user) {
+    redirect("/auth/login")
+  }
+
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFilter, setSelectedFilter] = useState("all")
   const [viewMode, setViewMode] = useState("grid")
