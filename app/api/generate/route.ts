@@ -7,38 +7,49 @@ interface BackendGenerateRequest {
   framework?: string
 }
 
-async function callBackendGeneration(prompt: string, framework: string): Promise<any> {
+async function callBackendGeneration(prompt: string, framework: string, authToken?: string): Promise<any> {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
   
-  // Try the full LangGraph agent first
-  try {
-    const response = await fetch(`${backendUrl}/api/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_prompt: prompt,
-        framework: framework.toLowerCase().replace(/\s+/g, '-'),
-        project_type: 'web'
-      } as BackendGenerateRequest),
-      // Add timeout for the full agent
-      signal: AbortSignal.timeout(30000) // 30 second timeout for full generation
-    })
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  
+  // Add auth token if provided
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`
+  }
+  
+  // Try the full LangGraph agent first (requires authentication)
+  if (authToken) {
+    try {
+      const response = await fetch(`${backendUrl}/api/generate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          user_prompt: prompt,
+          framework: framework.toLowerCase().replace(/\s+/g, '-'),
+          project_type: 'web'
+        } as BackendGenerateRequest),
+        // Add timeout for the full agent
+        signal: AbortSignal.timeout(30000) // 30 second timeout for full generation
+      })
 
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success && data.files) {
-        // Convert backend files response to frontend format
-        const mainFile = data.files['index.html'] || Object.values(data.files)[0] || ''
-        return { text: mainFile, fromBackend: true, allFiles: data.files, source: 'backend-full' }
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.files) {
+          // Convert backend files response to frontend format
+          const mainFile = data.files['index.html'] || Object.values(data.files)[0] || ''
+          return { text: mainFile, fromBackend: true, allFiles: data.files, source: 'backend-full' }
+        }
+      } else if (response.status === 401) {
+        console.log('Authentication required for full generation, trying simple generation')
       }
+    } catch (error) {
+      console.log('Full backend generation failed, trying simple generation:', error)
     }
-  } catch (error) {
-    console.log('Full backend generation failed, trying simple generation:', error)
   }
 
-  // Fall back to simple generation if full agent fails
+  // Fall back to simple generation (no auth required)
   try {
     const response = await fetch(`${backendUrl}/api/generate-simple`, {
       method: 'POST',
@@ -77,6 +88,7 @@ export async function POST(request: NextRequest) {
       framework = "Next.js 14",
       styling = "Tailwind CSS",
       components = "shadcn/ui",
+      authToken,
     } = await request.json()
 
     if (!prompt) {
@@ -84,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     // All code generation now happens via the backend
-    const backendResult = await callBackendGeneration(prompt, framework)
+    const backendResult = await callBackendGeneration(prompt, framework, authToken)
     
     return NextResponse.json({
       code: backendResult.text,

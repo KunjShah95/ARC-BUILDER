@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
+import { useBackendAuth } from "@/lib/hooks/use-backend-auth"
 import {
   Wand2,
   Code2,
@@ -46,6 +47,7 @@ const integrations = [
 
 export default function GeneratorPage() {
   const router = useRouter()
+  const { backendToken, isAuthenticated, isBackendAuthenticated, user } = useBackendAuth()
   const [prompt, setPrompt] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -58,18 +60,7 @@ export default function GeneratorPage() {
   const [styling, setStyling] = useState("Tailwind CSS")
   const [components, setComponents] = useState("shadcn/ui")
   const [generationError, setGenerationError] = useState("")
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // Simple authentication check
-  useEffect(() => {
-    const checkAuth = () => {
-      // For demo purposes, we'll allow access without authentication
-      // In production, you would check for a valid session
-      setIsAuthenticated(true)
-    }
-    checkAuth()
-  }, [])
 
   const handleGenerateWithAI = async () => {
     if (!prompt.trim()) return
@@ -109,6 +100,7 @@ export default function GeneratorPage() {
           framework,
           styling,
           components,
+          authToken: backendToken, // Include backend auth token
         }),
       })
 
@@ -604,6 +596,17 @@ export default function GeneratedPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Authentication Status */}
+              <Badge
+                variant={isAuthenticated ? "default" : "secondary"}
+                className="flex items-center gap-1"
+              >
+                <Bot className="w-3 h-3" />
+                {isAuthenticated ? (
+                  isBackendAuthenticated ? "AI Connected" : "Frontend Auth"
+                ) : "Not Signed In"}
+              </Badge>
+              
               {integrations.map((integration) => (
                 <Badge
                   key={integration.id}
@@ -652,6 +655,28 @@ export default function GeneratedPage() {
                     </CardTitle>
                     <CardDescription>
                       Tell us what you want to build. Be as detailed as possible for better results.
+                      {!isAuthenticated && (
+                        <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                          <span className="text-sm text-yellow-700 dark:text-yellow-300">
+                            💡 Sign in for access to the full AI-powered generation using GPT-OSS-120B. 
+                            You can still try the simple generator below!
+                          </span>
+                        </div>
+                      )}
+                      {isAuthenticated && !isBackendAuthenticated && (
+                        <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                          <span className="text-sm text-blue-700 dark:text-blue-300">
+                            🔗 Connecting to AI backend... You may see simple generation for now.
+                          </span>
+                        </div>
+                      )}
+                      {isBackendAuthenticated && (
+                        <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                          <span className="text-sm text-green-700 dark:text-green-300">
+                            ✅ Connected to AI backend! Full GPT-OSS-120B generation available.
+                          </span>
+                        </div>
+                      )}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">

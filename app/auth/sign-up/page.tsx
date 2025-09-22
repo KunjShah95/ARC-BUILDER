@@ -43,17 +43,39 @@ export default function Page() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      console.log('Attempting sign up with Supabase...')
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/dashboard`,
         },
       })
-      if (error) throw error
+      
+      console.log('Supabase signup response:', { data, error })
+      
+      if (error) {
+        console.error('Supabase signup error:', error)
+        throw error
+      }
+      
       router.push("/auth/sign-up-success")
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      console.error('Sign up failed:', error)
+      if (error instanceof Error) {
+        // Provide more detailed error messages
+        if (error.message.includes('fetch')) {
+          setError("Unable to connect to authentication service. Please check your internet connection and try again.")
+        } else if (error.message.includes('Invalid login credentials')) {
+          setError("Invalid email or password. Please check your credentials.")
+        } else if (error.message.includes('Email not confirmed')) {
+          setError("Please check your email and click the confirmation link before signing in.")
+        } else {
+          setError(`Authentication error: ${error.message}`)
+        }
+      } else {
+        setError("An unexpected error occurred. Please try again.")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -65,15 +87,31 @@ export default function Page() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log('Attempting Google OAuth sign up...')
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
         },
       })
-      if (error) throw error
+      
+      console.log('Google OAuth response:', { data, error })
+      
+      if (error) {
+        console.error('Google OAuth error:', error)
+        throw error
+      }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      console.error('Google sign up failed:', error)
+      if (error instanceof Error) {
+        if (error.message.includes('fetch')) {
+          setError("Unable to connect to Google authentication. Please check your internet connection and try again.")
+        } else {
+          setError(`Google authentication error: ${error.message}`)
+        }
+      } else {
+        setError("Google authentication failed. Please try again.")
+      }
       setIsGoogleLoading(false)
     }
   }
