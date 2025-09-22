@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BackendStatus } from "@/components/backend-status"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import {
@@ -26,6 +28,7 @@ import {
   Star,
   TrendingUp,
   Activity,
+  Settings,
 } from "lucide-react"
 
 const mockProjects = [
@@ -204,8 +207,16 @@ export default function DashboardPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Main Dashboard Tabs */}
+        <Tabs defaultValue="projects" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="projects">Projects</TabsTrigger>
+            <TabsTrigger value="backend">Backend Status</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="projects" className="space-y-8">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -553,6 +564,14 @@ export default function DashboardPage() {
             </Button>
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="backend" className="space-y-8">
+            <div className="flex justify-center">
+              <BackendStatus />
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

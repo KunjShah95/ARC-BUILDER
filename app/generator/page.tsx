@@ -80,24 +80,60 @@ export default function GeneratorPage() {
     setGenerationError("")
 
     try {
-      // Simulate AI generation progress
+      // Show progress while making API call
       const progressSteps = [
-        { progress: 15, message: "Analyzing your requirements..." },
-        { progress: 30, message: "Planning component structure..." },
-        { progress: 50, message: "Generating React components..." },
-        { progress: 70, message: "Applying styling and animations..." },
-        { progress: 85, message: "Optimizing for performance..." },
-        { progress: 100, message: "Complete! Your website is ready." }
+        { progress: 15, message: "Connecting to AI backend..." },
+        { progress: 30, message: "Analyzing your requirements..." },
+        { progress: 50, message: "GPT-OSS-120B is generating your code..." },
+        { progress: 70, message: "Processing generated files..." },
+        { progress: 85, message: "Finalizing your application..." },
       ]
 
-      for (const step of progressSteps) {
-        await new Promise(resolve => setTimeout(resolve, 800))
-        setProgress(step.progress)
+      // Start progress updates
+      let currentStep = 0
+      const progressInterval = setInterval(() => {
+        if (currentStep < progressSteps.length) {
+          setProgress(progressSteps[currentStep].progress)
+          currentStep++
+        }
+      }, 1000)
+
+      // Call the backend API
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          framework,
+          styling,
+          components,
+        }),
+      })
+
+      clearInterval(progressInterval)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
       }
 
-      // Generate realistic code based on the prompt
-      const generatedCode = generateCodeFromPrompt(prompt, framework, styling, components)
-      setGeneratedCode(generatedCode)
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Generation failed')
+      }
+
+      // Show completion
+      setProgress(100)
+      setGeneratedCode(result.code || result.files?.['index.html'] || 'No code generated')
+      
+      // If we have multiple files, we could handle them here
+      if (result.files && Object.keys(result.files).length > 1) {
+        console.log('Generated files:', result.files)
+      }
+
     } catch (error) {
       console.error("Generation failed:", error)
       setGenerationError(error instanceof Error ? error.message : "Failed to generate code")
@@ -662,6 +698,12 @@ export default function GeneratedPage() {
                             </>
                           )}
                         </Button>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center justify-center">
+                          <Badge variant="outline" className="text-xs">
+                            <Zap className="w-3 h-3 mr-1" />
+                            Powered by GPT-OSS-120B
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </CardContent>

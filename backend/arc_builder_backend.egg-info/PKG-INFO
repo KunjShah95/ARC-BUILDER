@@ -1,0 +1,131 @@
+Metadata-Version: 2.4
+Name: arc-builder-backend
+Version: 0.1.0
+Summary: Backend API for ARC-BUILDER code generation
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.104.1
+Requires-Dist: uvicorn[standard]>=0.24.0
+Requires-Dist: groq>=0.31.0
+Requires-Dist: langchain>=0.3.27
+Requires-Dist: langchain-core>=0.3.72
+Requires-Dist: langchain-groq>=0.3.7
+Requires-Dist: langgraph>=0.6.3
+Requires-Dist: pip>=25.2
+Requires-Dist: pydantic>=2.11.7
+Requires-Dist: python-dotenv>=1.1.1
+Requires-Dist: supabase>=2.3.0
+
+# ARC-BUILDER Backend Setup
+
+This directory contains the Python backend for ARC-BUILDER, which provides AI-powered code generation using LangGraph.
+
+## Prerequisites
+
+- Python 3.11 or higher
+- pip or uv package manager
+
+## Setup Instructions
+
+1. **Install Dependencies**
+   ```bash
+   cd backend
+   pip install -e .
+   ```
+   
+   Or using uv (recommended):
+   ```bash
+   cd backend
+   uv sync
+   ```
+
+2. **Environment Configuration**
+   
+   Copy the `.env` file and fill in your credentials:
+   ```bash
+   # Make sure .env exists in the backend directory
+   # Edit the .env file with your API keys
+   ```
+   
+   Required environment variables:
+   - `GROQ_API_KEY`: Your Groq API key for LLM access
+   - `LANGCHAIN_API_KEY`: Optional, for LangChain tracing
+   - `BACKEND_PORT`: Server port (default: 8000)
+   - `CORS_ORIGINS`: Allowed origins for CORS (default: http://localhost:3000)
+
+3. **Running the Server**
+   
+   Development mode (with auto-reload):
+   ```bash
+   python main.py
+   ```
+   
+   Or using uvicorn directly:
+   ```bash
+   uvicorn main:app --reload --port 8000
+   ```
+
+4. **Testing the Server**
+   
+   Once running, you can test the endpoints:
+   - Health check: http://localhost:8000/health
+   - API docs: http://localhost:8000/docs
+   - Generate endpoint: POST http://localhost:8000/api/generate
+
+## API Endpoints
+
+- `GET /` - Root endpoint
+- `GET /health` - Health check with configuration details
+- `POST /api/generate` - Full code generation using LangGraph agent
+- `POST /api/generate-simple` - Simple code generation for testing
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Import Errors**
+   - Make sure all dependencies are installed
+   - Check that you're in the backend directory
+
+2. **API Key Errors**
+   - Verify your GROQ_API_KEY is set in .env
+   - Check that the .env file is in the backend directory
+
+3. **Port Already in Use**
+   - Change the BACKEND_PORT in .env
+   - Or kill the process using port 8000
+
+4. **CORS Issues**
+   - Make sure CORS_ORIGINS includes your frontend URL
+   - Default is http://localhost:3000
+
+### Testing Connection
+
+You can test the backend connection from the frontend dashboard in the "Backend Status" tab, or manually:
+
+```bash
+curl http://localhost:8000/health
+```
+
+### Logs
+
+The server logs will show:
+- Startup information
+- Request processing
+- Generation progress
+- Error details
+
+## Development
+
+The backend uses:
+- **FastAPI** for the web framework
+- **LangGraph** for AI agent orchestration
+- **Groq** for LLM inference
+- **Pydantic** for data validation
+
+Key files:
+- `main.py` - FastAPI application and endpoints
+- `agent/graph.py` - LangGraph agent definition
+- `agent/states.py` - State management for the agent
+- `agent/tools.py` - Tools for file operations
+- `agent/prompts.py` - Prompt templates
